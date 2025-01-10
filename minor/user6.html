@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <script src="js/jquery-3.4.1.min.js"></script>
+    <script src="js/popper.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <title>Bird Vocal Frequency Recognition - Line Graph Spectrogram</title>
+    
+    <style>
+        body {
+            font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+            background-color: #aebac6;
+            margin: 0px;
+            padding: 0px;
+        }
+
+        .container {
+            background-color: rgba(208, 212, 212, 0.874); /* Slight transparency */
+            position: relative;
+            z-index: 1;
+            padding: 40px;
+            border-radius:10px ;
+        }
+
+        .spectrogram-container {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+        }
+
+        .spectrogram-container canvas {
+            border: 2px solid #1d1a1a;
+            width: 100%;
+            height: 250px;
+        }
+
+        .features {
+            font-size: 1rem;
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #1a1313;
+            background-color: #f4f4f4;
+        }
+
+        .static-features {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #151010;
+            background-color: #e0f7fa;
+        }
+
+        .result-features {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #000000;
+            background-color: #f9e79f;
+        }
+
+        .sky {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(to bottom, #87ceeb 0%, transparent 100%);
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .bird {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: url('bird.png') no-repeat center/contain;
+        }
+
+        .bird1 {
+            top: 30px;
+            animation: flyHorizontally 12s linear infinite;
+        }
+
+        .bird2 {
+            top: 50px;
+            animation: flyZigzag 12s linear infinite;
+        }
+
+        @keyframes flyHorizontally {
+            0% {
+                left: -100px;
+            }
+            100% {
+                left: 100vw;
+            }
+        }
+
+        @keyframes flyZigzag {
+            0% {
+                left: -100px;
+            }
+            25% {
+                left: 25vw;
+                transform: translateY(-20px);
+            }
+            50% {
+                left: 50vw;
+                transform: translateY(20px);
+            }
+            75% {
+                left: 75vw;
+                transform: translateY(-20px);
+            }
+            100% {
+                left: 100vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sky"> 
+        <div class="bird bird1" style="height: 100px; width:50px"><img src="bird2.gif" alt=""></div>
+        <div class="bird bird2"><img src="bird2.gif" alt=""></div>
+        <div class="bird bird3"><img src="bird2.gif" alt=""></div>
+    </div>
+
+    <div class="container">
+        <h1 class="text-center mb-4">Vocal Frequency Recognition of Bird- Jacobin Cuckoo</h1>
+
+        <p class="k1">Let's see the difference in the frequencies of Jacobin Cuckoo's over the years </p>
+
+        <!-- Year Selection -->
+        <div class="year-selection row">
+            <div class="col-md-6">
+                <label for="year1">Select Year 1:</label>
+                <select id="year1" class="form-control">
+                    <option value="2020">2009</option>
+                    <option value="2021">2010</option>
+                    <option value="2022">2011</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label for="year2">Select Year 2:</label>
+                <select id="year2" class="form-control">
+                    <option value="2020">2021</option>
+                    <option value="2021">2022</option>
+                    <option value="2022">2023</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="file1" class="form-label">Upload Audio File for Year 1:</label>
+            <input class="form-control" type="file" id="file1" accept="audio/*">
+        </div>
+
+        <div class="mb-3">
+            <label for="file2" class="form-label">Upload Audio File for Year 2:</label>
+            <input class="form-control" type="file" id="file2" accept="audio/*">
+        </div>
+
+        <button id="generateSpectrograms" class="btn btn-primary btn-block w-100 mb-4">Generate Spectrograms</button>
+
+        <div class="spectrogram-container">
+            <div class="text-center">
+                <h3>Spectrogram for Year 1</h3>
+                <canvas id="lineGraph1" class="mb-2"></canvas>
+                <div id="features1" class="features"></div>
+            </div>
+            <div class="text-center">
+                <h3>Spectrogram for Year 2</h3>
+                <canvas id="lineGraph2" class="mb-2"></canvas>
+                <div id="features2" class="features"></div>
+            </div>
+        </div>
+
+        <div class="static-features">
+            <h4>Static Features for Year 1</h4>
+            <div id="staticFeatures1"></div>
+        </div>
+
+        <div class="static-features">
+            <h4>Static Features for Year 2</h4>
+            <div id="staticFeatures2"></div>
+        </div>
+
+        <div class="result-features">
+            <h4>Difference Between Static Features</h4>
+            <div id="resultFeatures"></div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput1 = document.getElementById('file1');
+        const fileInput2 = document.getElementById('file2');
+        const generateButton = document.getElementById('generateSpectrograms');
+        const staticFeaturesContainer1 = document.getElementById('staticFeatures1');
+        const staticFeaturesContainer2 = document.getElementById('staticFeatures2');
+        const resultFeaturesContainer = document.getElementById('resultFeatures');
+
+        let staticFeaturesYear1 = {};
+        let staticFeaturesYear2 = {};
+
+        generateButton.addEventListener('click', async () => {
+            if (fileInput1.files.length && fileInput2.files.length) {
+                staticFeaturesYear1 = await extractStaticFeatures(fileInput1.files[0]);
+                staticFeaturesYear2 = await extractStaticFeatures(fileInput2.files[0]);
+
+                displayStaticFeatures(staticFeaturesYear1, staticFeaturesContainer1);
+                displayStaticFeatures(staticFeaturesYear2, staticFeaturesContainer2);
+                displayResultFeatures(staticFeaturesYear1, staticFeaturesYear2, resultFeaturesContainer);
+            } else {
+                alert('Please upload both audio files.');
+            }
+        });
+
+        async function extractStaticFeatures(file) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
+            const rawData = audioBuffer.getChannelData(0);
+
+            const meanAmplitude = rawData.reduce((sum, value) => sum + Math.abs(value), 0) / rawData.length;
+
+            let peakFrequency = 0;
+            let peakAmplitude = 0;
+            for (let i = 0; i < rawData.length; i++) {
+                const frequency = i * audioBuffer.sampleRate / rawData.length;
+                const amplitude = Math.abs(rawData[i]);
+                if (amplitude > peakAmplitude) {
+                    peakAmplitude = amplitude;
+                    peakFrequency = frequency;
+                }
+            }
+
+            const bandwidth = peakFrequency;
+
+            return {
+                meanAmplitude: meanAmplitude.toFixed(3),
+                peakFrequency: peakFrequency.toFixed(2),
+                bandwidth: bandwidth.toFixed(2),
+            };
+        }
+
+        function displayStaticFeatures(features, container) {
+            container.innerHTML = `
+                <p><strong>Mean Amplitude:</strong> ${features.meanAmplitude}</p>
+                <p><strong>Peak Frequency:</strong> ${features.peakFrequency} Hz</p>
+                <p><strong>Bandwidth:</strong> ${features.bandwidth} Hz</p>
+            `;
+        }
+
+        function displayResultFeatures(features1, features2, container) {
+            const result = {
+                meanAmplitude: (features2.meanAmplitude - features1.meanAmplitude).toFixed(3),
+                peakFrequency: (features2.peakFrequency - features1.peakFrequency).toFixed(2),
+                bandwidth: (features2.bandwidth - features1.bandwidth).toFixed(2),
+            };
+
+            container.innerHTML = `
+                <p><strong>Mean Amplitude Difference:</strong> ${result.meanAmplitude}</p>
+                <p><strong>Peak Frequency Difference:</strong> ${result.peakFrequency} Hz</p>
+                <p><strong>Bandwidth Difference:</strong> ${result.bandwidth} Hz</p>
+            `;
+        }
+    </script>
+</body>
+</html>
+
